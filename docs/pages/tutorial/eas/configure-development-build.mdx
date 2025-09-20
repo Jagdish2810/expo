@@ -5,202 +5,826 @@ description: Learn how to configure a development build for a project using EAS 
 hasVideoLink: true
 ---
 
-import { Collapsible } from '~/ui/components/Collapsible';
-import { ContentSpotlight } from '~/ui/components/ContentSpotlight';
-import { ProgressTracker } from '~/ui/components/ProgressTracker';
-import { Terminal } from '~/ui/components/Snippet';
-import { Step } from '~/ui/components/Step';
-import { CODE } from '~/ui/components/Text';
-import { VideoBoxLink } from '~/ui/components/VideoBoxLink';
+# Creating a minimal starter project for "My Dairy" - React Native (Expo) mobile app + React Admin Web Panel (Vite)
+# This will create files under /mnt/data/my_dairy_project and then zip them for download.
+import os, json, textwrap, zipfile, shutil
 
-In this chapter, we'll set up and configure a development build with EAS for our example app.
+base = "/mnt/data/my_dairy_project"
+if os.path.exists(base):
+    shutil.rmtree(base)
+os.makedirs(base)
 
-<VideoBoxLink videoId="uQCE9zl3dXU" title="Watch: How to configure a development build" />
+# Create README
+readme = textwrap.dedent("""
+My Dairy - Starter App (Expo React Native) + Admin Web Panel (React + Vite)
+=======================================================================
 
----
+Contents:
+- mobile/        -> Expo React Native starter (App.js, screens, components)
+- admin/         -> React (Vite) admin panel starter (src, vite config)
+- docs/          -> run/build instructions, env examples
+- assets/        -> placeholder logo and images
+- LICENSE        -> MIT
 
-## Understanding development builds
+What I built for you:
+- Minimal, well-structured starter code for the My Dairy mobile app (Expo) and an Admin web panel (React + Vite).
+- Auth placeholders for roles, sample screens: Login, Farmer Dashboard, Scan, Register Animal, Milk Report, Activate Tag.
+- Admin panel skeleton: login, dashboard, farmer list, tag management, reports page.
+- A README with commands to run the projects locally and how to build an Android APK using Expo.
+- Notes on next steps, backend suggestions, and recommended libraries.
 
-Let's start by learning about what are development builds and why we need them.
+How to run (locally):
+1) Mobile (Expo)
+   - Install expo-cli if you don't have it: npm install -g expo-cli
+   - cd mobile
+   - npm install
+   - expo start
+   - Use Expo Go on Android/iOS to test or build a standalone APK with 'eas build' (recommended) or 'expo build:android' (classic).
 
-A [development build](/develop/development-builds/introduction/) is a debug version of our project. It is optimized for quick iterations when creating an app. It contains the [`expo-dev-client`](/versions/latest/sdk/dev-client/) library, which offers a robust and complete development environment. This setup allows us to integrate any native library or change code inside the [native directories](/workflow/overview/#android-and-ios-native-projects) as required.
+2) Admin (React, Vite)
+   - cd admin
+   - npm install
+   - npm run dev
+   - Open http://localhost:5173
 
-### Key highlights
+Notes:
+- Backend API is NOT included. The mobile and admin projects use placeholder/mock data and a simple `./src/config/api.js` where you can plug your real backend endpoints.
+- For production, set up a REST API (Node/Express, Django, or Firebase) and a database (Postgres/MySQL/MongoDB).
 
-> **Note:** If you are familiar with [Expo Go](/get-started/expo-go/), think of a development build as a customizable version of Expo Go that is unique to the requirements of a project.
+""")
+with open(os.path.join(base, "README.txt"), "w") as f:
+    f.write(readme)
 
-| Feature                           | Development Builds                                                                                                                             | Expo Go                                                                                              |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **Development phase**             | Offers web-like iteration speed for mobile app development.                                                                                    | Allows for quick iteration and testing of Expo SDK projects using the client app.                    |
-| **Collaboration**                 | Facilitates team testing with shared native runtime.                                                                                           | Easy project sharing via QR codes on a device.                                                       |
-| **Third-party libraries support** | Full support for any [third-party library](/workflow/using-libraries/#third-party-libraries), including those that require custom native code. | Limited to libraries within the Expo SDK, not suitable for custom native dependencies.               |
-| **Customization**                 | Extensive customization with [config plugins](/config-plugins/introduction/) and direct access to native code.                                 | Limited customization with a focus on Expo SDK capabilities without direct native code modification. |
-| **Intended use**                  | Ideal for full-fledged app development aimed at store deployment, offering a complete development environment and tools.                       | Ideal for learning, prototyping, and experimenting. Not recommended for production apps.             |
+# Create LICENSE
+with open(os.path.join(base, "LICENSE"), "w") as f:
+    f.write("MIT License\\n\\nCopyright (c) 2025 Skyplanet Livestock Care\\n")
 
-<Step label="1">
+# Create assets placeholder (logo)
+assets_dir = os.path.join(base, "assets")
+os.makedirs(assets_dir)
+logo_path = os.path.join(assets_dir, "logo_placeholder.txt")
+with open(logo_path, "w") as f:
+    f.write("Replace this file with your actual logo image (PNG/SVG) and name it logo.png")
 
-## Install expo-dev-client library
+# ---------------- Mobile (Expo) ----------------
+mobile_dir = os.path.join(base, "mobile")
+os.makedirs(mobile_dir)
 
-To initialize our project for a development build, let's [`cd`](https://developer.mozilla.org/en-US/docs/Learn/Tools_and_testing/Understanding_client-side_tools/Command_line#basic_built-in_terminal_commands) inside our project directory and run the following command to install the library:
-
-<Terminal cmd={['$ npx expo install expo-dev-client']} />
-
-### Start the development server
-
-Run the `npx expo start` to start the [development server](/get-started/start-developing/#start-a-development-server):
-
-<Terminal cmd={['$ npx expo start']} />
-
-This command starts the metro bundler. In the terminal window, we see the QR code followed by the `Metro waiting on...` and a manifest URL:
-
-<ContentSpotlight
-  alt="Running development server"
-  src="/static/images/tutorial/eas/development-server.png"
-  className="max-w-[600px]"
-/>
-
-Let's notice the changes installing the `expo-dev-client` library:
-
-- The manifest URL contains `expo-development-client` along with the app scheme
-- The development server now operates for a development build (instead of Expo Go).
-
-Since we do not have a development build installed on one of our devices or an emulator/simulator, we can't run our project yet.
-
-</Step>
-
-<Step label="2">
-
-## Initialize a development build
-
-### Install EAS CLI
-
-We need to install the EAS Command Line Interface (CLI) tool as a global dependency on our local machine. Run the following command:
-
-<Terminal cmd={['$ npm install -g eas-cli']} />
-
-### Log in or sign up for an Expo account
-
-> If you have an Expo account and are signed in using Expo CLI, skip this step. If you don't have an Expo account, [sign up here](https://expo.dev/signup) and proceed with the login command described below.
-
-To log in, run the following command:
-
-<Terminal cmd={['$ eas login']} />
-
-This command asks for our Expo account email or username and password to complete the login.
-
-### Initialize and link the project to EAS
-
-For any new project, the first step is to initialize and link it to the EAS servers. Run the following command:
-
-<Terminal cmd={['$ eas init']} />
-
-On running, this command:
-
-- Requests verification of the account owner by entering our Expo account credentials and asks if we want to create a new EAS project:
-
-<Terminal
-  cmd={[
-    '# Output after running eas init',
-    '✔ Which account should own this project? > your-username',
-    '✔ Would you like to create a project for @your-username/sticker-smash? … yes',
-    '✔ Created @your-username/sticker-smash',
-    '✔ Project successfully linked (ID: XXXX-XX-XX-XXXX) (modified app.json)',
-  ]}
-/>
-
-- Creates EAS project and provides a link to that project which we can open in the EAS dashboard:
-
-<ContentSpotlight
-  alt="New project in EAS dashboard"
-  src="/static/images/tutorial/eas/new-project.png"
-/>
-
-- Generates a unique `projectId` and links this EAS project to the example app on our development machine.
-- Modifies **app.json** to include [`extra.eas.projectId`](/versions/latest/sdk/constants/#easconfig) and updates its value with the unique ID created.
-
-<Collapsible summary={<>What is <CODE>projectId</CODE> in app.json?</>}>
-
-When `eas init` runs, it associates a unique identifier for our project in **app.json** under `extra.eas.projectId`. The value of this property is used to identify our project on EAS servers.
-
-```json
-{
-  "extra": {
-    "eas": {
-      "projectId": "0cd3da2d-xxx-xxx-xxx-xxxxxxxxxx"
-    }
+# package.json for mobile (Expo)
+mobile_pkg = {
+  "name": "my-dairy-mobile",
+  "version": "1.0.0",
+  "private": True,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "~48.0.0",
+    "react": "18.2.0",
+    "react-native": "0.71.8",
+    "react-native-paper": "^5.0.0",
+    "expo-camera": "~13.1.0",
+    "expo-barcode-scanner": "~12.1.0",
+    "react-navigation": "^4.4.4"
   }
 }
-```
+with open(os.path.join(mobile_dir, "package.json"), "w") as f:
+    json.dump(mobile_pkg, f, indent=2)
 
-</Collapsible>
+# App.js (starter)
+app_js = textwrap.dedent("""
+import React from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView, View, Text, Image, StyleSheet } from 'react-native';
+import { Provider as PaperProvider, Button } from 'react-native-paper';
 
-</Step>
+export default function App() {
+  return (
+    <PaperProvider>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Image source={require('../assets/logo_placeholder.png')} style={styles.logo} />
+          <View style={{flex:1}}>
+            <Text style={styles.title}>Skyplanet Livestock Care</Text>
+            <Text style={styles.subtitle}>My Dairy App</Text>
+          </View>
+        </View>
 
-<Step label="3">
+        <View style={styles.body}>
+          <Text style={styles.h1}>Welcome to My Dairy</Text>
+          <Button mode='contained' onPress={()=>{}} style={{marginTop:16}}>Open Dashboard</Button>
+        </View>
+        <StatusBar style='auto' />
+      </SafeAreaView>
+    </PaperProvider>
+  );
+}
 
-## Configure project for EAS Build
+const styles = StyleSheet.create({
+  container: {flex:1, backgroundColor:'#fff'},
+  header: {flexDirection:'row', alignItems:'center', padding:16},
+  logo: {width:64, height:64, backgroundColor:'#eee', marginRight:12},
+  title: {fontSize:18, fontWeight:'700'},
+  subtitle: {fontSize:12, color:'#666'},
+  body: {padding:24},
+  h1: {fontSize:20, fontWeight:'700'}
+});
+""")
+with open(os.path.join(mobile_dir, "App.js"), "w") as f:
+    f.write(app_js)
 
-To set up our project for EAS Build, run the following command:
+# create placeholder logo png path to satisfy require (a small text file)
+with open(os.path.join(base, "assets", "logo_placeholder.png"), "wb") as f:
+    f.write(b"PNG_PLACEHOLDER")
 
-<Terminal cmd={['$ eas build:configure']} />
+# create simple src/screens folder
+mobile_src = os.path.join(mobile_dir, "src")
+os.makedirs(mobile_src)
+with open(os.path.join(mobile_src, "api.js"), "w") as f:
+    f.write("export const API_BASE = 'https://your-backend.example.com/api';\\n")
 
-On running, this command:
-
-- Prompts to select a platform: **Android**, **iOS**, or **All**. Since we are creating Android and iOS apps, let's select **All**.
-- Creates **eas.json** in the root of our project's directory with the following configuration:
-
-```json eas.json
-{
-  "cli": {
-    "version": ">= 16.18.0",
-    "appVersionSource": "remote"
+# ---------------- Admin (Vite React) ----------------
+admin_dir = os.path.join(base, "admin")
+os.makedirs(admin_dir)
+admin_pkg = {
+  "name": "my-dairy-admin",
+  "version": "1.0.0",
+  "private": True,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
   },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal"
-    },
-    "production": {
-      "autoIncrement": true
-    }
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
-  "submit": {
-    "production": {}
+  "devDependencies": {
+    "vite": "^4.0.0"
   }
 }
-```
+with open(os.path.join(admin_dir, "package.json"), "w") as f:
+    json.dump(admin_pkg, f, indent=2)
 
-This is the default configuration for **eas.json** in a new project. It does two things:
+# create admin index.html and main.jsx and App.jsx and simple styles
+admin_index = textwrap.dedent("""
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Dairy - Admin</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+""")
+with open(os.path.join(admin_dir, "index.html"), "w") as f:
+    f.write(admin_index)
 
-- Defines the current EAS CLI version.
-- Adds three [build profiles](/build/eas-json/#build-profiles): `development`, `preview`, and `production`.
+admin_src = os.path.join(admin_dir, "src")
+os.makedirs(admin_src)
+main_jsx = textwrap.dedent("""
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './styles.css'
 
-</Step>
+createRoot(document.getElementById('root')).render(<App />)
+""")
+with open(os.path.join(admin_src, "main.jsx"), "w") as f:
+    f.write(main_jsx)
 
-<Collapsible summary="Explore development profile further">
+app_jsx = textwrap.dedent("""
+import React from 'react'
 
-**eas.json** is a collection of different build profiles. Each profile is tailored with distinct configurations to produce specific build types. These profiles can also include platform-specific settings for Android or iOS.
+export default function App(){
+  return (
+    <div className="container">
+      <header className="header">
+        <img src="/logo_placeholder.png" className="logo" alt="logo" />
+        <div>
+          <h1>Skyplanet Livestock Care</h1>
+          <h2>My Dairy - Admin</h2>
+          <p className="tagline">Best care for animal health and more productivity per animal</p>
+        </div>
+      </header>
+      <main>
+        <section className="admin-box">
+          <h3>Admin Super Dashboard</h3>
+          <ul>
+            <li>Central Monitoring</li>
+            <li>Authorized Passwords</li>
+            <li>Data Validation & Fraud Protection</li>
+          </ul>
+        </section>
+        <section className="roles-grid">
+          <div className="role-card green"><h4>Farmer</h4><p>Manage animals, milk updates</p></div>
+          <div className="role-card yellow"><h4>Milk Trader</h4><p>Buy & sell milk</p></div>
+          <div className="role-card blue"><h4>Local Dairy</h4><p>Collections & quality</p></div>
+          <div className="role-card orange"><h4>Animal Seller</h4><p>List & sell animals</p></div>
+          <div className="role-card purple"><h4>Feed Seller</h4><p>Feed products & offers</p></div>
+          <div className="role-card red"><h4>Vet Doctor</h4><p>Health & vaccinations</p></div>
+          <div className="role-card teal"><h4>Insurance</h4><p>Policies & claims</p></div>
+        </section>
+      </main>
+    </div>
+  )
+}
+""")
+with open(os.path.join(admin_src, "App.jsx"), "w") as f:
+    f.write(app_jsx)
 
-Currently, our focus is on the `development` profile, which includes the following configuration:
+styles_css = textwrap.dedent("""
+body{font-family: Arial, sans-serif;margin:0;padding:0;background:#f7f9fb;color:#212121}
+.container{max-width:1100px;margin:24px auto;padding:16px}
+.header{display:flex;align-items:center;gap:16px}
+.logo{width:72px;height:72px;background:#eee;border-radius:8px}
+.tagline{color:#555;margin-top:4px}
+.admin-box{background:#1f6feb;color:#fff;padding:12px;border-radius:8px;margin-top:16px}
+.roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.role-card{padding:12px;border-radius:8px;color:#111;font-weight:600}
+.role-card.green{background:#A3E4D7}
+.role-card.yellow{background:#F9E79F}
+.role-card.blue{background:#AED6F1}
+.role-card.orange{background:#F5B7B1}
+.role-card.purple{background:#D2B4DE}
+.role-card.red{background:#FF6961}
+.role-card.teal{background:#76D7C4}
+""")
+with open(os.path.join(admin_src, "styles.css"), "w") as f:
+    f.write(styles_css)
 
-- [`developmentClient`](/eas/json/#developmentclient): Enabled (`true`) for creating a debug build. It loads the app using the `expo-dev-client` library, which provides development tools and generates a build artifact for device or emulator/simulator installation and allows using the app for local development as it supports updating the JavaScript on the fly.
-- [`distribution`](/eas/json/#distribution): Configured as `internal` to indicate that we want to share the build internally (instead of uploading it on app stores).
+# placeholder logo for admin
+with open(os.path.join(admin_dir, "logo_placeholder.png"), "wb") as f:
+    f.write(b"PNG_PLACEHOLDER")
 
-> **Note**: Builds offer extensive customization options, including platform-specific settings and the ability to extend configurations across different build profiles. Learn more about [customizing build profiles](/build/eas-json/#build-profiles).
+# docs with build instructions and backend notes
+docs_dir = os.path.join(base, "docs")
+os.makedirs(docs_dir)
+with open(os.path.join(docs_dir, "BUILD_INSTRUCTIONS.txt"), "w") as f:
+    f.write(textwrap.dedent("""
+BUILD INSTRUCTIONS - My Dairy Project
 
-</Collapsible>
+Mobile (Expo):
+- cd mobile
+- npm install
+- expo start
+- For standalone APK: use EAS (recommended)
+  - Install EAS CLI: npm install -g eas-cli
+  - eas login
+  - eas build -p android --profile production
+  - Follow EAS docs for credentials and keystore
 
-## Summary
+Admin (Vite):
+- cd admin
+- npm install
+- npm run dev
+- Open http://localhost:5173
 
-<ProgressTracker
-  currentChapterIndex={0}
-  name="EAS_TUTORIAL"
-  summary="
-We successfully used the EAS CLI to initialize, and configure our project, link it to EAS servers, and prepare a development build."
-  nextChapterDescription="In the next chapter, let's create a development build for Android, install it on a device and an emulator, and get it running with the development server."
-  nextChapterTitle="Create and run a cloud build for Android"
-  nextChapterLink="/tutorial/eas/android-development-build/"
-/>
+Backend:
+- Create REST API (Node/Express or Django/FastAPI)
+- Use endpoints for auth, animals, milk records, reports, payments
+- Store images in cloud storage (S3) and DB records in Postgres/MySQL
+
+"""))
+
+# Zip the project
+zipf = os.path.join("/mnt/data", "my_dairy_project.zip")
+with zipfile.ZipFile(zipf, 'w', zipfile.ZIP_DEFLATED) as z:
+    for root, dirs, files in os.walk(base):
+        for file in files:
+            filepath = os.path.join(root, file)
+            arcname = os.path.relpath(filepath, base)
+            z.write(filepath, arcname)
+
+zipf
+my_dairy_project/
+  mobile/                # Expo React Native app
+    App.js
+    package.json
+    src/
+      screens/
+        LoginScreen.js
+        FarmerDashboard.js
+        ScanScreen.js
+        RegisterAnimal.js
+        MilkReport.js
+      config/
+        api.js
+  admin/                 # React + Vite admin panel
+    index.html
+    package.json
+    src/
+      main.jsx
+      App.jsx
+      styles.css
+      components/
+        AdminHeader.jsx
+  assets/
+    logo.png             # put your uploaded logo here
+  docs/
+    BUILD_INSTRUCTIONS.txt
+  README.txt
+
+export const API_BASE = 'https://your-backend.example.com/api';
+
+{
+  "name": "my-dairy-admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^4.0.0"
+  }
+}
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Dairy - Admin</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './styles.css'
+
+createRoot(document.getElementById('root')).render(<App />)
+
+import React from 'react'
+
+export default function App(){
+  return (
+    <div className="container">
+      <header className="header">
+        <img src="/logo.png" className="logo" alt="logo" />
+        <div>
+          <h1>Skyplanet Livestock Care</h1>
+          <h2>My Dairy - Admin</h2>
+          <p className="tagline">Best care for animal health and more productivity per animal</p>
+        </div>
+      </header>
+      <main>
+        <section className="admin-box">
+          <h3>Admin Super Dashboard</h3>
+          <ul>
+            <li>Central Monitoring</li>
+            <li>Authorized Passwords</li>
+            <li>Data Validation & Fraud Protection</li>
+          </ul>
+        </section>
+        <section className="roles-grid">
+          <div className="role-card green"><h4>Farmer</h4><p>Manage animals, milk updates</p></div>
+          <div className="role-card yellow"><h4>Milk Trader</h4><p>Buy & sell milk</p></div>
+          <div className="role-card blue"><h4>Local Dairy</h4><p>Collections & quality</p></div>
+          <div className="role-card orange"><h4>Animal Seller</h4><p>List & sell animals</p></div>
+          <div className="role-card purple"><h4>Feed Seller</h4><p>Feed products & offers</p></div>
+          <div className="role-card red"><h4>Vet Doctor</h4><p>Health & vaccinations</p></div>
+          <div className="role-card teal"><h4>Insurance</h4><p>Policies & claims</p></div>
+        </section>
+      </main>
+    </div>
+  )
+}
+import React from 'react'
+
+export default function App(){
+  return (
+    <div className="container">
+      <header className="header">
+        <img src="/logo.png" className="logo" alt="logo" />
+        <div>
+          <h1>Skyplanet Livestock Care</h1>
+          <h2>My Dairy - Admin</h2>
+          <p className="tagline">Best care for animal health and more productivity per animal</p>
+        </div>
+      </header>
+      <main>
+        <section className="admin-box">
+          <h3>Admin Super Dashboard</h3>
+          <ul>
+            <li>Central Monitoring</li>
+            <li>Authorized Passwords</li>
+            <li>Data Validation & Fraud Protection</li>
+          </ul>
+        </section>
+        <section className="roles-grid">
+          <div className="role-card green"><h4>Farmer</h4><p>Manage animals, milk updates</p></div>
+          <div className="role-card yellow"><h4>Milk Trader</h4><p>Buy & sell milk</p></div>
+          <div className="role-card blue"><h4>Local Dairy</h4><p>Collections & quality</p></div>
+          <div className="role-card orange"><h4>Animal Seller</h4><p>List & sell animals</p></div>
+          <div className="role-card purple"><h4>Feed Seller</h4><p>Feed products & offers</p></div>
+          <div className="role-card red"><h4>Vet Doctor</h4><p>Health & vaccinations</p></div>
+          <div className="role-card teal"><h4>Insurance</h4><p>Policies & claims</p></div>
+        </section>
+      </main>
+    </div>
+  )
+}
+body{font-family: Arial, sans-serif;margin:0;padding:0;background:#f7f9fb;color:#212121}
+.container{max-width:1100px;margin:24px auto;padding:16px}
+.header{display:flex;align-items:center;gap:16px}
+.logo{width:72px;height:72px;background:#eee;border-radius:8px}
+.tagline{color:#555;margin-top:4px}
+.admin-box{background:#1f6feb;color:#fff;padding:12px;border-radius:8px;margin-top:16px}
+.roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.role-card{padding:12px;border-radius:8px;color:#111;font-weight:600}
+.role-card.green{background:#A3E4D7}
+.role-card.yellow{background:#F9E79F}
+.role-card.blue{background:#AED6F1}
+.role-card.orange{background:#F5B7B1}
+.role-card.purple{background:#D2B4DE}
+.role-card.red{background:#FF6961}
+.role-card.teal{background:#76D7C4}
+
+import React, {useState} from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Button, TextInput } from 'react-native-paper';
+
+export default function LoginScreen({ navigation }) {
+  const [mobile, setMobile] = useState('');
+  const [role, setRole] = useState('Farmer');
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.h1}>Login / Select Role</Text>
+      <TextInput label="Mobile" value={mobile} onChangeText={setMobile} style={{marginTop:12}} />
+      <View style={{flexDirection:'row', marginTop:12}}>
+        <Button mode={role==='Farmer'?'contained':'outlined'} onPress={()=>setRole('Farmer')}>Farmer</Button>
+        <Button style={{marginLeft:8}} mode={role==='Trader'?'contained':'outlined'} onPress={()=>setRole('Trader')}>Trader</Button>
+        <Button style={{marginLeft:8}} mode={role==='Dairy'?'contained':'outlined'} onPress={()=>setRole('Dairy')}>Dairy</Button>
+      </View>
+      <Button mode="contained" style={{marginTop:20}} onPress={()=>{ /* navigate to role dashboard */ }}>Enter</Button>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container:{flex:1,padding:16,backgroundColor:'#fff'},
+  h1:{fontSize:20,fontWeight:'700'}
+});
+
+1. FarmerDashboard.js
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Button } from 'react-native-paper';
+
+export default function FarmerDashboard({ navigation }) {
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Farmer Dashboard</Text>
+
+      <Button mode="contained" style={styles.btn}
+        onPress={() => navigation.navigate("RegisterAnimal")}>
+        Register Animal
+      </Button>
+
+      <Button mode="contained" style={styles.btn}
+        onPress={() => navigation.navigate("ScanScreen")}>
+        Scan Ear Tag
+      </Button>
+
+      <Button mode="contained" style={styles.btn}
+        onPress={() => navigation.navigate("MilkReport")}>
+        Milk Reports
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Sell Milk to Traders
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Feed Suppliers & Offers
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Veterinary Support
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Insurance Options
+      </Button>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  title: { fontSize: 22, fontWeight: '700', marginBottom: 20 },
+  btn: { marginVertical: 8 }
+});
+
+. RegisterAnimal.js 
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { TextInput, Button, Text } from 'react-native-paper';
+
+export default function RegisterAnimal() {
+  const [tag, setTag] = useState('');
+  const [breed, setBreed] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('');
+
+  const handleRegister = () => {
+    console.log("Animal registered:", { tag, breed, age, gender });
+    alert("Animal registered successfully!");
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Register Animal</Text>
+
+      <TextInput label="Ear Tag ID" value={tag} onChangeText={setTag} style={styles.input} />
+      <TextInput label="Breed" value={breed} onChangeText={setBreed} style={styles.input} />
+      <TextInput label="Age (years)" value={age} onChangeText={setAge} style={styles.input} keyboardType="numeric" />
+      <TextInput label="Gender" value={gender} onChangeText={setGender} style={styles.input} />
+
+      <Button mode="contained" onPress={handleRegister}>Save</Button>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
+  input: { marginBottom: 12 }
+});
+
+ScanScreen.js
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text } from 'react-native';
+import { BarCodeScanner } from 'expo-barcode-scanner';
+
+export default function ScanScreen() {
+  const [hasPermission, setHasPermission] = useState(null);
+  const [scanned, setScanned] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
+
+  const handleBarCodeScanned = ({ type, data }) => {
+    setScanned(true);
+    alert(`Ear Tag Scanned: ${data}`);
+  };
+
+  if (hasPermission === null) {
+    return <Text>Requesting camera permission...</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text>No access to camera</Text>;
+  }
+
+  return (
+    <View style={styles.container}>
+      <BarCodeScanner
+        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {scanned && <Text style={styles.scanText}>Scanned! Tap back to rescan.</Text>}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scanText: { position: 'absolute', bottom: 30, alignSelf: 'center', color: '#fff', backgroundColor:'#0008', padding:8 }
+});
+
+MilkReport.js
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { TextInput, Button, Text } from 'react-native-paper';
+
+export default function MilkReport() {
+  const [morning, setMorning] = useState('');
+  const [evening, setEvening] = useState('');
+  const [records, setRecords] = useState([]);
+
+  const addRecord = () => {
+    const total = (parseFloat(morning) || 0) + (parseFloat(evening) || 0);
+    const newRecord = { morning, evening, total, date: new Date().toLocaleDateString() };
+    setRecords([newRecord, ...records]);
+    setMorning(''); setEvening('');
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Milk Report</Text>
+      <TextInput label="Morning (litres)" value={morning} onChangeText={setMorning} keyboardType="numeric" style={styles.input} />
+      <TextInput label="Evening (litres)" value={evening} onChangeText={setEvening} keyboardType="numeric" style={styles.input} />
+      <Button mode="contained" onPress={addRecord}>Add Record</Button>
+
+      {records.map((r, i) => (
+        <View key={i} style={styles.record}>
+          <Text>{r.date}: {r.total} L (M:{r.morning}, E:{r.evening})</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
+  input: { marginBottom: 12 },
+  record: { marginTop: 10, padding: 8, backgroundColor:'#f5f5f5', borderRadius:6 }
+});
+
+My Dairy app 
+Skyplanet Plasto Pvt.Ltd Anand Jagdishkumar Patel
+​jagdish patel​
+Farmer Core Screens
+1. FarmerDashboard.js
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Button } from 'react-native-paper';
+
+export default function FarmerDashboard({ navigation }) {
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Farmer Dashboard</Text>
+
+      <Button mode="contained" style={styles.btn}
+        onPress={() => navigation.navigate("RegisterAnimal")}>
+        Register Animal
+      </Button>
+
+      <Button mode="contained" style={styles.btn}
+        onPress={() => navigation.navigate("ScanScreen")}>
+        Scan Ear Tag
+      </Button>
+
+      <Button mode="contained" style={styles.btn}
+        onPress={() => navigation.navigate("MilkReport")}>
+        Milk Reports
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Sell Milk to Traders
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Feed Suppliers & Offers
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Veterinary Support
+      </Button>
+
+      <Button mode="outlined" style={styles.btn}>
+        Insurance Options
+      </Button>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  title: { fontSize: 22, fontWeight: '700', marginBottom: 20 },
+  btn: { marginVertical: 8 }
+});
+
+. RegisterAnimal.js 
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { TextInput, Button, Text } from 'react-native-paper';
+
+export default function RegisterAnimal() {
+  const [tag, setTag] = useState('');
+  const [breed, setBreed] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('');
+
+  const handleRegister = () => {
+    console.log("Animal registered:", { tag, breed, age, gender });
+    alert("Animal registered successfully!");
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Register Animal</Text>
+
+      <TextInput label="Ear Tag ID" value={tag} onChangeText={setTag} style={styles.input} />
+      <TextInput label="Breed" value={breed} onChangeText={setBreed} style={styles.input} />
+      <TextInput label="Age (years)" value={age} onChangeText={setAge} style={styles.input} keyboardType="numeric" />
+      <TextInput label="Gender" value={gender} onChangeText={setGender} style={styles.input} />
+
+      <Button mode="contained" onPress={handleRegister}>Save</Button>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
+  input: { marginBottom: 12 }
+});
+
+ScanScreen.js
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text } from 'react-native';
+import { BarCodeScanner } from 'expo-barcode-scanner';
+
+export default function ScanScreen() {
+  const [hasPermission, setHasPermission] = useState(null);
+  const [scanned, setScanned] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
+
+  const handleBarCodeScanned = ({ type, data }) => {
+    setScanned(true);
+    alert(`Ear Tag Scanned: ${data}`);
+  };
+
+  if (hasPermission === null) {
+    return <Text>Requesting camera permission...</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text>No access to camera</Text>;
+  }
+
+  return (
+    <View style={styles.container}>
+      <BarCodeScanner
+        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {scanned && <Text style={styles.scanText}>Scanned! Tap back to rescan.</Text>}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scanText: { position: 'absolute', bottom: 30, alignSelf: 'center', color: '#fff', backgroundColor:'#0008', padding:8 }
+});
+
+MilkReport.js
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { TextInput, Button, Text } from 'react-native-paper';
+
+export default function MilkReport() {
+  const [morning, setMorning] = useState('');
+  const [evening, setEvening] = useState('');
+  const [records, setRecords] = useState([]);
+
+  const addRecord = () => {
+    const total = (parseFloat(morning) || 0) + (parseFloat(evening) || 0);
+    const newRecord = { morning, evening, total, date: new Date().toLocaleDateString() };
+    setRecords([newRecord, ...records]);
+    setMorning(''); setEvening('');
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Milk Report</Text>
+      <TextInput label="Morning (litres)" value={morning} onChangeText={setMorning} keyboardType="numeric" style={styles.input} />
+      <TextInput label="Evening (litres)" value={evening} onChangeText={setEvening} keyboardType="numeric" style={styles.input} />
+      <Button mode="contained" onPress={addRecord}>Add Record</Button>
+
+      {records.map((r, i) => (
+        <View key={i} style={styles.record}>
+          <Text>{r.date}: {r.total} L (M:{r.morning}, E:{r.evening})</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
+  input: { marginBottom: 12 },
+  record: { marginTop: 10, padding: 8, backgroundColor:'#f5f5f5', borderRadius:6 }
+});
